@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chess clock</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: #0f0f12;
+      color: #f4f4f5;
+    }
+    #clock {
+      position: relative;
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+      filter: brightness(0.45);
+    }
+    #clock.active {
+      display: flex;
+      filter: none;
+    }
+    #clock.under-overlay {
+      display: flex;
+    }
+    .main-player {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      min-height: 42vh;
+    }
+    .main-player .name {
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 700;
+      opacity: 0.95;
+      margin-bottom: 0.5rem;
+    }
+    .main-player .time {
+      font-size: clamp(3rem, 12vw, 7rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+    .strip {
+      display: grid;
+      min-height: 22vh;
+      border-top: 3px solid rgba(0,0,0,0.35);
+    }
+    .strip-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem;
+      border-right: 2px solid rgba(0,0,0,0.25);
+    }
+    .strip-cell:last-child { border-right: none; }
+    .strip-cell .name {
+      font-size: clamp(0.85rem, 2vw, 1.1rem);
+      font-weight: 600;
+      opacity: 0.92;
+    }
+    .strip-cell .time {
+      font-size: clamp(1.25rem, 4vw, 2rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    .flag-count {
+      margin-top: 0.35rem;
+      font-size: clamp(0.7rem, 1.6vw, 0.9rem);
+      font-weight: 700;
+      color: #ef4444;
+      font-variant-numeric: tabular-nums;
+    }
+    .main-player .flag-count {
+      font-size: clamp(0.85rem, 2vw, 1.05rem);
+    }
+
+    #paused-layer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 14;
+      align-items: center;
+      justify-content: center;
+      background: rgba(24, 24, 27, 0.94);
+      pointer-events: auto;
+    }
+    #clock.paused #paused-layer {
+      display: flex;
+    }
+    .paused-label {
+      font-size: clamp(2rem, 8vw, 4rem);
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #fafafa;
+    }
+
+    #pause-toggle {
+      display: none;
+      position: fixed;
+      top: 0.65rem;
+      right: 0.65rem;
+      z-index: 25;
+      width: 3rem;
+      height: 3rem;
+      padding: 0;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.45);
+      color: #fafafa;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    }
+    #pause-toggle:hover {
+      background: rgba(0, 0, 0, 0.6);
+    }
+    #pause-toggle svg {
+      width: 1.35rem;
+      height: 1.35rem;
+      display: block;
+    }
+    #clock.active #pause-toggle {
+      display: flex;
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      background: rgba(18, 18, 22, 0.92);
+      backdrop-filter: blur(6px);
+    }
+    #overlay.hidden { display: none; }
+    .overlay-title {
+      text-align: center;
+      padding: 1rem 1rem 0.5rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #a1a1aa;
+    }
+    .overlay-fields {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      min-height: 0;
+    }
+    .field-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .field-block label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #71717a;
+      margin-bottom: 0.35rem;
+    }
+    .field-block textarea {
+      flex: 1;
+      min-height: 100px;
+      width: 100%;
+      resize: vertical;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      background: #18181b;
+      color: #e4e4e7;
+    }
+    .field-block textarea:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+    }
+    #start-error {
+      color: #f87171;
+      font-size: 0.85rem;
+      padding: 0 1rem;
+      min-height: 1.25rem;
+    }
+    .go-wrap {
+      padding: 1rem 1rem 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #go {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 0.9rem 3.5rem;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: linear-gradient(180deg, #4ade80, #22c55e);
+      color: #052e16;
+      box-shadow: 0 4px 14px rgba(34, 197, 94, 0.45);
+    }
+    #go:hover {
+      filter: brightness(1.05);
+    }
+    #go:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.3);
+    }
+    .hint {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #52525b;
+      padding: 0 1rem 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="clock" class="under-overlay" aria-hidden="true">
+    <button type="button" id="pause-toggle" aria-label="Pause" title="Pause">
+      <svg id="pause-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+        <rect x="5" y="4" width="5" height="16" rx="1" />
+        <rect x="14" y="4" width="5" height="16" rx="1" />
+      </svg>
+      <svg id="play-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" style="display:none">
+        <path d="M8 5v14l11-7L8 5z" />
+      </svg>
+    </button>
+    <div id="paused-layer" aria-hidden="true">
+      <span class="paused-label">Paused</span>
+    </div>
+    <div id="main-slot" class="main-player"></div>
+    <div id="strip" class="strip"></div>
+  </div>
+
+  <div id="overlay">
+    <div class="overlay-title">Chess clock</div>
+    <div class="overlay-fields">
+      <div class="field-block">
+        <label for="config-input">Config</label>
+        <textarea id="config-input" spellcheck="false" autocomplete="off">{
+  "players": [
+    { "name": "North", "backgroundColor": "#1e3a5f", "increment": 5, "startTime": 10 },
+    { "name": "East", "backgroundColor": "#5f1e3a", "increment": 5, "startTime": 10 },
+    { "name": "South", "backgroundColor": "#3a5f1e", "increment": 5, "startTime": 10 },
+    { "name": "West", "backgroundColor": "#5f3a1e", "increment": 5, "startTime": 10 }
+  ]
+}</textarea>
+      </div>
+      <div class="field-block">
+        <label for="save-input">Previous save state</label>
+        <textarea id="save-input" spellcheck="false" autocomplete="off" placeholder="Leave empty for a new game"></textarea>
+      </div>
+    </div>
+    <div id="start-error" role="alert"></div>
+    <div class="hint">Space — end turn · Esc — undo turn</div>
+    <div class="go-wrap">
+      <button type="button" id="go">Go</button>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  const overlay = document.getElementById('overlay');
+  const clockEl = document.getElementById('clock');
+  const mainSlot = document.getElementById('main-slot');
+  const stripEl = document.getElementById('strip');
+  const configInput = document.getElementById('config-input');
+  const saveInput = document.getElementById('save-input');
+  const goBtn = document.getElementById('go');
+  const startError = document.getElementById('start-error');
+  const pauseBtn = document.getElementById('pause-toggle');
+  const pauseIconEl = document.getElementById('pause-icon');
+  const playIconEl = document.getElementById('play-icon');
+  const pausedLayer = document.getElementById('paused-layer');
+
+  let playing = false;
+  let paused = false;
+  let gameConfig = null;
+  let initialConfig = null;
+  let remainingMs = [];
+  let outOfTimeCounts = [];
+  let currentIndex = 0;
+  let lastTs = 0;
+  let rafId = 0;
+  const undoStack = [];
+
+  let audioCtx = null;
+  let sirenOsc = null;
+  let sirenGain = null;
+  let sirenLfo = null;
+
+  function isTypingTarget(el) {
+    if (!el || !el.tagName) return false;
+    const t = el.tagName.toLowerCase();
+    return t === 'textarea' || t === 'input' || el.isContentEditable;
+  }
+
+  function normalizePlayers(obj) {
+    if (!obj || !Array.isArray(obj.players)) return null;
+    return obj.players.map((p) => ({
+      name: String(p.name),
+      backgroundColor: String(p.backgroundColor),
+      increment: Number(p.increment),
+      startTime: Number(p.startTime),
+    }));
+  }
+
+  function parseConfig(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return { error: 'Config is empty.' };
+    let data;
+    try {
+      data = JSON.parse(trimmed);
+    } catch (e) {
+      return { error: 'Config is not valid JSON.' };
+    }
+    const players = normalizePlayers(data);
+    if (!players || players.length === 0) {
+      return { error: 'Config must include a non-empty "players" array.' };
+    }
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      if (!Number.isFinite(p.increment) || p.increment < 0) {
+        return { error: `Player ${i + 1}: increment must be a non-negative number.` };
+      }
+      if (!Number.isFinite(p.startTime) || p.startTime < 0) {
+        return { error: `Player ${i + 1}: startTime must be a non-negative number.` };
+      }
+    }
+    return { config: { players } };
+  }
+
+  function configsMatch(configA, configB) {
+    return JSON.stringify(configA.players) === JSON.stringify(configB.players);
+  }
+
+  function parseSave(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return { empty: true };
+    try {
+      const data = JSON.parse(trimmed);
+      if (data == null || typeof data !== 'object') {
+        return { error: 'Save state must be a JSON object.' };
+      }
+      if (!data.config || !Array.isArray(data.config.players)) {
+        return { error: 'Save state must include a "config" object with "players".' };
+      }
+      const normalizedSaveConfig = { players: normalizePlayers(data.config) };
+      if (!normalizedSaveConfig.players) {
+        return { error: 'Save state config.players is invalid.' };
+      }
+      if (!Array.isArray(data.remainingMs)) {
+        return { error: 'Save state must include "remainingMs" array.' };
+      }
+      const rem = data.remainingMs.map((x) => Number(x));
+      if (rem.some((x) => !Number.isFinite(x) || x < 0)) {
+        return { error: 'remainingMs must be non-negative numbers.' };
+      }
+      const ci = Number(data.currentIndex);
+      if (!Number.isInteger(ci) || ci < 0 || ci >= normalizedSaveConfig.players.length) {
+        return { error: 'currentIndex is out of range for this save.' };
+      }
+      if (rem.length !== normalizedSaveConfig.players.length) {
+        return { error: 'remainingMs length does not match players in save.' };
+      }
+      const nPlayers = normalizedSaveConfig.players.length;
+      let outOfTimeCounts = null;
+      if (data.outOfTimeCounts !== undefined) {
+        if (!Array.isArray(data.outOfTimeCounts)) {
+          return { error: 'outOfTimeCounts must be an array when present.' };
+        }
+        const oc = data.outOfTimeCounts.map((x) => Number(x));
+        if (oc.length !== nPlayers) {
+          return { error: 'outOfTimeCounts length must match players.' };
+        }
+        if (oc.some((x) => !Number.isInteger(x) || x < 0)) {
+          return { error: 'outOfTimeCounts must be non-negative integers.' };
+        }
+        outOfTimeCounts = oc;
+      }
+      return {
+        empty: false,
+        config: normalizedSaveConfig,
+        remainingMs: rem,
+        currentIndex: ci,
+        outOfTimeCounts,
+      };
+    } catch (e) {
+      return { error: 'Previous save state is not valid JSON.' };
+    }
+  }
+
+  function formatTime(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) {
+      return h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+    }
+    return String(m) + ':' + String(sec).padStart(2, '0');
+  }
+
+  function appendFlagCount(container, idx) {
+    const c = outOfTimeCounts[idx] || 0;
+    if (c < 1) return;
+    const el = document.createElement('div');
+    el.className = 'flag-count';
+    el.textContent = 'Out of time: ' + c;
+    container.appendChild(el);
+  }
+
+  function renderClock() {
+    if (!gameConfig) return;
+    const players = gameConfig.players;
+    const n = players.length;
+    const cur = players[currentIndex];
+    mainSlot.style.background = cur.backgroundColor;
+    mainSlot.innerHTML =
+      '<div class="name"></div><div class="time"></div>';
+    mainSlot.querySelector('.name').textContent = cur.name;
+    mainSlot.querySelector('.time').textContent = formatTime(remainingMs[currentIndex]);
+    appendFlagCount(mainSlot, currentIndex);
+
+    stripEl.innerHTML = '';
+    if (n <= 1) {
+      stripEl.style.display = 'none';
+      return;
+    }
+    stripEl.style.display = 'grid';
+    stripEl.style.gridTemplateColumns = 'repeat(' + (n - 1) + ', 1fr)';
+
+    for (let k = 1; k < n; k++) {
+      const idx = (currentIndex + k) % n;
+      const p = players[idx];
+      const cell = document.createElement('div');
+      cell.className = 'strip-cell';
+      cell.style.background = p.backgroundColor;
+      cell.innerHTML = '<div class="name"></div><div class="time"></div>';
+      cell.querySelector('.name').textContent = p.name;
+      cell.querySelector('.time').textContent = formatTime(remainingMs[idx]);
+      appendFlagCount(cell, idx);
+      stripEl.appendChild(cell);
+    }
+  }
+
+  function stopSiren() {
+    try {
+      if (sirenLfo) sirenLfo.stop();
+      if (sirenOsc) sirenOsc.stop();
+    } catch (_) {}
+    sirenLfo = null;
+    sirenOsc = null;
+    sirenGain = null;
+  }
+
+  function startSiren() {
+    if (sirenOsc) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      sirenGain = ctx.createGain();
+      sirenGain.gain.value = 0.12;
+      sirenOsc = ctx.createOscillator();
+      sirenOsc.type = 'sawtooth';
+      sirenOsc.frequency.value = 440;
+
+      sirenLfo = ctx.createOscillator();
+      sirenLfo.type = 'sine';
+      sirenLfo.frequency.value = 4;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 280;
+      sirenLfo.connect(lfoGain);
+      lfoGain.connect(sirenOsc.frequency);
+
+      sirenOsc.connect(sirenGain);
+      sirenGain.connect(ctx.destination);
+      sirenLfo.start();
+      sirenOsc.start();
+    } catch (_) {}
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    const delta = now - lastTs;
+    lastTs = now;
+    if (!paused && remainingMs[currentIndex] > 0) {
+      const before = remainingMs[currentIndex];
+      remainingMs[currentIndex] = Math.max(0, remainingMs[currentIndex] - delta);
+      if (before > 0 && remainingMs[currentIndex] <= 0) {
+        remainingMs[currentIndex] = 0;
+        outOfTimeCounts[currentIndex] = (outOfTimeCounts[currentIndex] || 0) + 1;
+        startSiren();
+      }
+    }
+    renderClock();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function setPaused(next) {
+    paused = next;
+    clockEl.classList.toggle('paused', paused);
+    pausedLayer.setAttribute('aria-hidden', paused ? 'false' : 'true');
+    if (paused) {
+      stopSiren();
+      pauseBtn.setAttribute('aria-label', 'Resume');
+      pauseBtn.setAttribute('title', 'Resume');
+      pauseIconEl.style.display = 'none';
+      playIconEl.style.display = 'block';
+    } else {
+      if (remainingMs[currentIndex] <= 0) startSiren();
+      pauseBtn.setAttribute('aria-label', 'Pause');
+      pauseBtn.setAttribute('title', 'Pause');
+      pauseIconEl.style.display = 'block';
+      playIconEl.style.display = 'none';
+    }
+  }
+
+  async function copyStateToClipboard() {
+    const payload = {
+      v: 1,
+      config: initialConfig,
+      currentIndex,
+      remainingMs: remainingMs.slice(),
+      outOfTimeCounts: outOfTimeCounts.slice(),
+      savedAt: new Date().toISOString(),
+    };
+    const text = JSON.stringify(payload);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (_) {}
+  }
+
+  function endTurn() {
+    if (!playing || !gameConfig || paused) return;
+    const n = gameConfig.players.length;
+    undoStack.push({
+      remainingMs: remainingMs.slice(),
+      outOfTimeCounts: outOfTimeCounts.slice(),
+      currentIndex,
+    });
+    const p = gameConfig.players[currentIndex];
+    remainingMs[currentIndex] += p.increment * 1000;
+    currentIndex = (currentIndex + 1) % n;
+    stopSiren();
+    copyStateToClipboard();
+    renderClock();
+  }
+
+  function undoTurn() {
+    if (!playing || paused || undoStack.length === 0) return;
+    const snap = undoStack.pop();
+    remainingMs = snap.remainingMs;
+    outOfTimeCounts = snap.outOfTimeCounts
+      ? snap.outOfTimeCounts.slice()
+      : remainingMs.map(() => 0);
+    currentIndex = snap.currentIndex;
+    stopSiren();
+    if (remainingMs[currentIndex] <= 0) startSiren();
+    renderClock();
+  }
+
+  function startGame(parsedConfig, resume) {
+    stopSiren();
+    gameConfig = parsedConfig;
+    initialConfig = JSON.parse(JSON.stringify(parsedConfig));
+    const n = parsedConfig.players.length;
+    if (resume) {
+      remainingMs = resume.remainingMs.slice();
+      currentIndex = resume.currentIndex;
+      if (resume.outOfTimeCounts && resume.outOfTimeCounts.length === n) {
+        outOfTimeCounts = resume.outOfTimeCounts.slice();
+      } else {
+        outOfTimeCounts = new Array(n).fill(0);
+      }
+    } else {
+      remainingMs = parsedConfig.players.map((p) => p.startTime * 1000);
+      outOfTimeCounts = new Array(n).fill(0);
+      currentIndex = 0;
+    }
+    undoStack.length = 0;
+    paused = false;
+    clockEl.classList.remove('paused');
+    pausedLayer.setAttribute('aria-hidden', 'true');
+    pauseIconEl.style.display = 'block';
+    playIconEl.style.display = 'none';
+    pauseBtn.setAttribute('aria-label', 'Pause');
+    pauseBtn.setAttribute('title', 'Pause');
+    playing = true;
+    overlay.classList.add('hidden');
+    clockEl.classList.add('active');
+    clockEl.classList.remove('under-overlay');
+    clockEl.setAttribute('aria-hidden', 'false');
+    lastTs = performance.now();
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+    if (remainingMs[currentIndex] <= 0) startSiren();
+    renderClock();
+  }
+
+  function tryGo() {
+    startError.textContent = '';
+    const cfgResult = parseConfig(configInput.value);
+    if (cfgResult.error) {
+      startError.textContent = cfgResult.error;
+      return;
+    }
+    const parsedConfig = cfgResult.config;
+    const saveResult = parseSave(saveInput.value);
+
+    if (saveResult.error) {
+      startError.textContent = saveResult.error;
+      return;
+    }
+
+    if (saveResult.empty) {
+      startGame(parsedConfig, null);
+      return;
+    }
+
+    if (!configsMatch(parsedConfig, saveResult.config)) {
+      startError.textContent =
+        'Save state does not match config. Use the same players (order, names, colors, increment, startTime) as in the saved "config".';
+      return;
+    }
+
+    startGame(parsedConfig, saveResult);
+  }
+
+  goBtn.addEventListener('click', tryGo);
+
+  pauseBtn.addEventListener('click', () => {
+    if (!playing) return;
+    setPaused(!paused);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!playing) return;
+    if (isTypingTarget(document.activeElement)) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (paused) return;
+      endTurn();
+    } else if (e.code === 'Escape') {
+      e.preventDefault();
+      if (paused) return;
+      undoTurn();
+    }
+  });
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "players": [
+    { "name": "North", "backgroundColor": "#1e3a5f", "increment": 5, "startTime": 10 },
+    { "name": "East", "backgroundColor": "#5f1e3a", "increment": 5, "startTime": 10 },
+    { "name": "South", "backgroundColor": "#3a5f1e", "increment": 5, "startTime": 10 },
+    { "name": "West", "backgroundColor": "#5f3a1e", "increment": 5, "startTime": 10 }
+  ]
+}
