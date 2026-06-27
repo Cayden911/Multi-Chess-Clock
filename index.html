@@ -23,6 +23,7 @@
     #clock.active {
       display: flex;
       filter: none;
+      cursor: pointer;
     }
     #clock.under-overlay {
       display: flex;
@@ -273,7 +274,7 @@
       </div>
     </div>
     <div id="start-error" role="alert"></div>
-    <div class="hint">Space — end turn · Esc — undo turn</div>
+    <div class="hint">Space or click — end turn · Esc — undo turn</div>
     <div class="go-wrap">
       <button type="button" id="go">Go</button>
     </div>
@@ -652,9 +653,15 @@
 
   goBtn.addEventListener('click', tryGo);
 
-  pauseBtn.addEventListener('click', () => {
+  pauseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (!playing) return;
     setPaused(!paused);
+  });
+
+  clockEl.addEventListener('click', () => {
+    if (!playing || paused) return;
+    endTurn();
   });
 
   document.addEventListener('keydown', (e) => {
