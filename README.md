@@ -1,10 +1,10 @@
 # Multi Chess Clock
 
-A browser-based chess clock for **two or more** players. One HTML file—no build step or dependencies.
+A browser-based chess clock for **two or more** players. One HTML file—no build step or dependencies. Works in normal browsers and in the **Tabletop Simulator** tablet browser.
 
 ## Run it
 
-Open `index.html` in a browser, or serve the folder with any static server (for example `npx serve`).
+Open `index.html` in a browser, host it on GitHub Pages, or point a TTS tablet at the same URL.
 
 ## Configure players
 
@@ -21,7 +21,7 @@ See `players.json` for the same structure as a standalone example.
 
 ## During a game
 
-- **Space** — end the active player’s turn (applies increment, moves to next player)
+- **Click or Space** — end the active player’s turn (applies increment, moves to next player)
 - **Esc** — undo the last turn
 - **Pause button** (top right) — pause or resume
 
