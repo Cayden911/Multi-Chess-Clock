@@ -234,7 +234,7 @@
       padding: 12px 14px 18px;
       text-align: center;
     }
-    #go, #sync-config-btn {
+    #go, #sync-config-btn, #copy-link-btn {
       border: none;
       border-radius: 10px;
       padding: 12px 28px;
@@ -246,6 +246,7 @@
     }
     #go { background: #22c55e; color: #052e16; }
     #sync-config-btn { background: #3b82f6; color: #fff; }
+    #copy-link-btn { background: #52525b; color: #fff; }
     .hint {
       text-align: center;
       font-size: 0.75rem;
@@ -283,7 +284,7 @@
     <div class="overlay-fields">
       <div class="field-block">
         <label for="server-input">Backend server URL</label>
-        <input type="text" id="server-input" spellcheck="false" autocomplete="off" value="http://localhost:3000" />
+        <input type="text" id="server-input" spellcheck="false" autocomplete="off" placeholder="https://your-app.onrender.com" />
       </div>
       <div class="field-block">
         <label for="room-display">Room ID (from URL)</label>
@@ -306,11 +307,13 @@
       </div>
     </div>
     <div id="start-error" role="alert"></div>
-    <div class="hint">Shared room: same URL + room = same clock for everyone · Click or Space — end turn · Esc — undo</div>
+    <div class="hint">Share the full link below so others connect to the same server · Click or Space — end turn · Esc — undo</div>
     <div class="go-wrap">
+      <button type="button" id="copy-link-btn">Copy share link</button>
       <button type="button" id="sync-config-btn">Apply config to room</button>
       <button type="button" id="go">Start game</button>
     </div>
+    <div id="share-link" class="hint"></div>
   </div>
 
   <script>
@@ -328,6 +331,8 @@
   var saveInput = document.getElementById('save-input');
   var goBtn = document.getElementById('go');
   var syncConfigBtn = document.getElementById('sync-config-btn');
+  var copyLinkBtn = document.getElementById('copy-link-btn');
+  var shareLinkEl = document.getElementById('share-link');
   var startError = document.getElementById('start-error');
   var pauseBtn = document.getElementById('pause-toggle');
   var resetBtn = document.getElementById('reset-btn');
@@ -371,7 +376,35 @@
     var search = window.location.search || '';
     var regex = new RegExp('[?&]' + name + '=([^&]*)');
     var m = search.match(regex);
-    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null;
+    if (m) return decodeURIComponent(m[1].replace(/\+/g, ' '));
+    var hash = window.location.hash || '';
+    var hashRegex = new RegExp('[#&]' + name + '=([^&]*)');
+    var hm = hash.match(hashRegex);
+    return hm ? decodeURIComponent(hm[1].replace(/\+/g, ' ')) : null;
+  }
+
+  function isLocalHost(hostname) {
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  }
+
+  function isGitHubPagesHost(hostname) {
+    return hostname.indexOf('github.io') >= 0;
+  }
+
+  function getServerUrlFromUrl() {
+    var q = getQueryParam('server');
+    var hostname = window.location.hostname || '';
+    if (q) return trim(q).replace(/\/$/, '');
+    if (window.location.protocol.indexOf('http') !== 0) {
+      return 'http://localhost:3000';
+    }
+    if (isLocalHost(hostname)) {
+      return window.location.protocol + '//' + window.location.host;
+    }
+    if (!isGitHubPagesHost(hostname)) {
+      return window.location.protocol + '//' + window.location.host;
+    }
+    return '';
   }
 
   function getRoomIdFromUrl() {
@@ -379,23 +412,16 @@
     if (q) return q;
     var pathMatch = window.location.pathname.match(/\/game\/([^/]+)/);
     if (pathMatch) return decodeURIComponent(pathMatch[1]);
-    var hash = window.location.hash || '';
-    var hashMatch = hash.match(/room=([^&]+)/);
-    if (hashMatch) return decodeURIComponent(hashMatch[1]);
     return 'default';
   }
 
-  function getServerUrlFromUrl() {
-    var q = getQueryParam('server');
-    if (q) return trim(q).replace(/\/$/, '');
-    if (window.location.protocol.indexOf('http') === 0 && window.location.port) {
-      return window.location.protocol + '//' + window.location.host;
+  function buildShareUrl() {
+    var base = window.location.protocol + '//' + window.location.host + window.location.pathname;
+    var url = base + '?room=' + encodeURIComponent(roomId);
+    if (serverUrl) {
+      url += '&server=' + encodeURIComponent(serverUrl);
     }
-    if (window.location.protocol.indexOf('http') === 0 && !window.location.port &&
-        window.location.hostname === 'localhost') {
-      return window.location.protocol + '//' + window.location.host;
-    }
-    return 'http://localhost:3000';
+    return url;
   }
 
   function setStatus(mode, text) {
@@ -407,6 +433,55 @@
   function showError(msg) {
     startError.innerHTML = '';
     startError.appendChild(document.createTextNode(msg || ''));
+  }
+
+  function updateShareLinkDisplay() {
+    var link = buildShareUrl();
+    shareLinkEl.innerHTML = '';
+    shareLinkEl.appendChild(document.createTextNode('Share this link: ' + link));
+  }
+
+  function copyShareLink() {
+    var link = buildShareUrl();
+    var ta;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link);
+        showError('Share link copied.');
+        return;
+      }
+    } catch (ignoreCopy) {}
+    try {
+      ta = document.createElement('textarea');
+      ta.value = link;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showError('Share link copied.');
+    } catch (ignoreCopy2) {
+      showError('Copy this link manually: ' + link);
+    }
+  }
+
+  function offlineMessage(reason) {
+    var pageHost = window.location.hostname || '';
+    if (!serverUrl) {
+      if (isGitHubPagesHost(pageHost)) {
+        return 'Offline — add ?server=https://YOUR-APP.onrender.com to the link';
+      }
+      return 'Offline — enter your Render backend URL above';
+    }
+    if (isLocalHost(pageHost) && serverUrl.indexOf('localhost') < 0 && serverUrl.indexOf('127.0.0.1') < 0) {
+      return 'Offline — wrong server URL. Use your Render URL, not localhost.';
+    }
+    if (isGitHubPagesHost(pageHost) && !getQueryParam('server')) {
+      return 'Offline — add ?server=https://YOUR-APP.onrender.com to the link';
+    }
+    if (reason === 'load') {
+      return 'Offline — could not load Socket.IO from ' + serverUrl;
+    }
+    return 'Offline — cannot reach ' + serverUrl + ' (wait if Render is waking up)';
   }
 
   function isTypingTarget(el) {
@@ -723,7 +798,7 @@
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
-      timeout: 20000
+      timeout: 60000
     });
 
     socket.on('connect', function () {
@@ -742,7 +817,7 @@
 
     socket.on('connect_error', function () {
       connected = false;
-      setStatus('offline', 'Offline / local only — cannot reach ' + serverUrl);
+      setStatus('offline', offlineMessage('connect'));
     });
 
     socket.on('state', function (payload) {
@@ -753,17 +828,19 @@
   function initConnection() {
     serverUrl = trim(serverInput.value).replace(/\/$/, '');
     if (!serverUrl) {
-      setStatus('offline', 'Offline / local only — enter a backend server URL');
+      setStatus('offline', offlineMessage('missing'));
+      updateShareLinkDisplay();
       return;
     }
 
+    updateShareLinkDisplay();
     setStatus('debug', 'MULTI CHESS CLOCK — loading shared server…');
 
     fetchInitialState(function (err, data) {
       if (!err && data) applyServerPayload(data);
       loadScript(serverUrl + '/socket.io/socket.io.js', function (loadErr) {
         if (loadErr) {
-          setStatus('offline', 'Offline / local only — could not load Socket.IO from server');
+          setStatus('offline', offlineMessage('load'));
           return;
         }
         connectSocket();
@@ -829,6 +906,7 @@
 
   goBtn.addEventListener('click', tryStart);
   syncConfigBtn.addEventListener('click', trySyncConfig);
+  copyLinkBtn.addEventListener('click', copyShareLink);
   pauseBtn.addEventListener('click', function (e) {
     if (e.stopPropagation) e.stopPropagation();
     if (!serverState || !serverState.playing) return;
@@ -843,7 +921,11 @@
     sendAction('endTurn');
   });
   document.addEventListener('keydown', onKeyDown);
-  serverInput.addEventListener('change', initConnection);
+  serverInput.addEventListener('change', function () {
+    serverUrl = trim(serverInput.value).replace(/\/$/, '');
+    updateShareLinkDisplay();
+    initConnection();
+  });
 
   scheduleRenderLoop();
   initConnection();
