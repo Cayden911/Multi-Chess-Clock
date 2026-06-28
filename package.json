@@ -1,0 +1,17 @@
+{
+  "name": "multi-chess-clock",
+  "version": "1.0.0",
+  "description": "Shared multiplayer chess clock for browsers and Tabletop Simulator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

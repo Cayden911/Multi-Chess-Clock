@@ -17,6 +17,25 @@
       color: #f4f4f5;
     }
 
+    #top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 99999;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: bold;
+      text-align: center;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.4);
+    }
+  #top-bar.debug { background: #ffcc00; color: #000; }
+    #top-bar.connected { background: #166534; color: #ecfdf5; }
+    #top-bar.reconnecting { background: #a16207; color: #fff; }
+    #top-bar.offline { background: #7f1d1d; color: #fff; }
+
+    body { padding-top: 34px; }
+
     #clock {
       position: relative;
       display: none;
@@ -24,15 +43,8 @@
       height: 100%;
       min-height: 300px;
     }
-    #clock.under-overlay {
-      display: block;
-      opacity: 0.45;
-    }
-    #clock.active {
-      display: block;
-      opacity: 1;
-      cursor: pointer;
-    }
+    #clock.under-overlay { display: block; opacity: 0.45; }
+    #clock.active { display: block; opacity: 1; cursor: pointer; }
 
     .clock-inner {
       display: -webkit-box;
@@ -65,15 +77,8 @@
       padding: 16px;
       min-height: 180px;
     }
-    .main-player .name {
-      font-size: 2rem;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-    .main-player .time {
-      font-size: 4.5rem;
-      font-weight: bold;
-    }
+    .main-player .name { font-size: 2rem; font-weight: bold; margin-bottom: 8px; }
+    .main-player .time { font-size: 4.5rem; font-weight: bold; }
 
     .strip {
       display: -webkit-box;
@@ -116,7 +121,7 @@
     #paused-layer {
       display: none;
       position: fixed;
-      top: 0;
+      top: 34px;
       left: 0;
       right: 0;
       bottom: 0;
@@ -141,30 +146,31 @@
       text-transform: uppercase;
     }
 
-    #pause-toggle {
+    #pause-toggle, #reset-btn {
       display: none;
       position: fixed;
-      top: 10px;
-      right: 10px;
+      top: 44px;
       z-index: 25;
-      width: 48px;
-      height: 48px;
-      padding: 0;
+      height: 44px;
+      padding: 0 14px;
       border: none;
       border-radius: 10px;
       cursor: pointer;
       background: rgba(0, 0, 0, 0.55);
       color: #fafafa;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
-      line-height: 48px;
+      line-height: 44px;
       text-align: center;
     }
-    #clock.active #pause-toggle { display: block; }
+    #pause-toggle { right: 10px; width: 48px; padding: 0; }
+    #reset-btn { right: 66px; }
+    #clock.active #pause-toggle,
+    #clock.active #reset-btn { display: block; }
 
     #overlay {
       position: fixed;
-      top: 0;
+      top: 34px;
       left: 0;
       right: 0;
       bottom: 0;
@@ -204,9 +210,9 @@
       color: #71717a;
       margin-bottom: 6px;
     }
+    .field-block input,
     .field-block textarea {
       width: 100%;
-      min-height: 100px;
       font-family: Consolas, Monaco, monospace;
       font-size: 13px;
       line-height: 1.4;
@@ -216,6 +222,8 @@
       background: #18181b;
       color: #e4e4e7;
     }
+    .field-block textarea { min-height: 100px; }
+    .field-block input { font-family: Arial, Helvetica, sans-serif; }
     #start-error {
       color: #f87171;
       font-size: 0.85rem;
@@ -226,17 +234,18 @@
       padding: 12px 14px 18px;
       text-align: center;
     }
-    #go {
+    #go, #sync-config-btn {
       border: none;
       border-radius: 10px;
-      padding: 12px 48px;
-      font-size: 1.1rem;
+      padding: 12px 28px;
+      font-size: 1rem;
       font-weight: bold;
       text-transform: uppercase;
       cursor: pointer;
-      background: #22c55e;
-      color: #052e16;
+      margin: 0 6px 8px;
     }
+    #go { background: #22c55e; color: #052e16; }
+    #sync-config-btn { background: #3b82f6; color: #fff; }
     .hint {
       text-align: center;
       font-size: 0.75rem;
@@ -255,8 +264,10 @@
 </head>
 <body>
   <noscript>JavaScript is required for this chess clock.</noscript>
+  <div id="top-bar" class="debug">MULTI CHESS CLOCK — loading…</div>
 
   <div id="clock" class="under-overlay" aria-hidden="true">
+    <button type="button" id="reset-btn" title="Reset game">Reset</button>
     <button type="button" id="pause-toggle" aria-label="Pause" title="Pause">||</button>
     <div id="paused-layer" aria-hidden="true">
       <span class="paused-label">Paused</span>
@@ -268,8 +279,16 @@
   </div>
 
   <div id="overlay">
-    <div class="overlay-title">Chess clock</div>
+    <div class="overlay-title">Chess clock — shared room</div>
     <div class="overlay-fields">
+      <div class="field-block">
+        <label for="server-input">Backend server URL</label>
+        <input type="text" id="server-input" spellcheck="false" autocomplete="off" value="http://localhost:3000" />
+      </div>
+      <div class="field-block">
+        <label for="room-display">Room ID (from URL)</label>
+        <input type="text" id="room-display" readonly="readonly" />
+      </div>
       <div class="field-block">
         <label for="config-input">Config</label>
         <textarea id="config-input" spellcheck="false" autocomplete="off">{
@@ -282,14 +301,15 @@
 }</textarea>
       </div>
       <div class="field-block">
-        <label for="save-input">Previous save state</label>
+        <label for="save-input">Resume state (optional JSON)</label>
         <textarea id="save-input" spellcheck="false" autocomplete="off" placeholder="Leave empty for a new game"></textarea>
       </div>
     </div>
     <div id="start-error" role="alert"></div>
-    <div class="hint">Click or Space — end turn · Esc — undo · Pause — top right</div>
+    <div class="hint">Shared room: same URL + room = same clock for everyone · Click or Space — end turn · Esc — undo</div>
     <div class="go-wrap">
-      <button type="button" id="go">Go</button>
+      <button type="button" id="sync-config-btn">Apply config to room</button>
+      <button type="button" id="go">Start game</button>
     </div>
   </div>
 
@@ -297,26 +317,30 @@
 (function () {
   'use strict';
 
+  var topBar = document.getElementById('top-bar');
   var overlay = document.getElementById('overlay');
   var clockEl = document.getElementById('clock');
   var mainSlot = document.getElementById('main-slot');
   var stripEl = document.getElementById('strip');
+  var serverInput = document.getElementById('server-input');
+  var roomDisplay = document.getElementById('room-display');
   var configInput = document.getElementById('config-input');
   var saveInput = document.getElementById('save-input');
   var goBtn = document.getElementById('go');
+  var syncConfigBtn = document.getElementById('sync-config-btn');
   var startError = document.getElementById('start-error');
   var pauseBtn = document.getElementById('pause-toggle');
+  var resetBtn = document.getElementById('reset-btn');
 
-  var playing = false;
-  var paused = false;
-  var gameConfig = null;
-  var initialConfig = null;
-  var remainingMs = [];
-  var outOfTimeCounts = [];
-  var currentIndex = 0;
-  var lastTs = 0;
+  var roomId = 'default';
+  var serverUrl = '';
+  var socket = null;
+  var connected = false;
+  var serverState = null;
+  var serverOffsetMs = 0;
   var rafId = 0;
-  var undoStack = [];
+  var sirenOn = false;
+  var lastSirenIndex = -1;
 
   var audioCtx = null;
   var sirenOsc = null;
@@ -337,6 +361,52 @@
 
   function isArray(val) {
     return Object.prototype.toString.call(val) === '[object Array]';
+  }
+
+  function trim(str) {
+    return String(str || '').replace(/^\s+|\s+$/g, '');
+  }
+
+  function getQueryParam(name) {
+    var search = window.location.search || '';
+    var regex = new RegExp('[?&]' + name + '=([^&]*)');
+    var m = search.match(regex);
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null;
+  }
+
+  function getRoomIdFromUrl() {
+    var q = getQueryParam('room');
+    if (q) return q;
+    var pathMatch = window.location.pathname.match(/\/game\/([^/]+)/);
+    if (pathMatch) return decodeURIComponent(pathMatch[1]);
+    var hash = window.location.hash || '';
+    var hashMatch = hash.match(/room=([^&]+)/);
+    if (hashMatch) return decodeURIComponent(hashMatch[1]);
+    return 'default';
+  }
+
+  function getServerUrlFromUrl() {
+    var q = getQueryParam('server');
+    if (q) return trim(q).replace(/\/$/, '');
+    if (window.location.protocol.indexOf('http') === 0 && window.location.port) {
+      return window.location.protocol + '//' + window.location.host;
+    }
+    if (window.location.protocol.indexOf('http') === 0 && !window.location.port &&
+        window.location.hostname === 'localhost') {
+      return window.location.protocol + '//' + window.location.host;
+    }
+    return 'http://localhost:3000';
+  }
+
+  function setStatus(mode, text) {
+    topBar.className = mode;
+    topBar.innerHTML = '';
+    topBar.appendChild(document.createTextNode(text));
+  }
+
+  function showError(msg) {
+    startError.innerHTML = '';
+    startError.appendChild(document.createTextNode(msg || ''));
   }
 
   function isTypingTarget(el) {
@@ -363,7 +433,7 @@
   }
 
   function parseConfig(text) {
-    var trimmed = text.replace(/^\s+|\s+$/g, '');
+    var trimmed = trim(text);
     var data;
     var players;
     var i;
@@ -387,35 +457,20 @@
         return { error: 'Player ' + (i + 1) + ': startTime must be a non-negative number.' };
       }
     }
-    return { config: { players: players } };
-  }
-
-  function configsMatch(configA, configB) {
-    return JSON.stringify(configA.players) === JSON.stringify(configB.players);
+    return { players: players };
   }
 
   function parseSave(text) {
-    var trimmed = text.replace(/^\s+|\s+$/g, '');
+    var trimmed = trim(text);
     var data;
-    var normalizedSaveConfig;
     var rem = [];
     var oc = [];
-    var ci;
-    var nPlayers;
-    var outCounts = null;
     var i;
     if (!trimmed) return { empty: true };
     try {
       data = JSON.parse(trimmed);
-      if (data == null || typeof data !== 'object') {
+      if (!data || typeof data !== 'object') {
         return { error: 'Save state must be a JSON object.' };
-      }
-      if (!data.config || !data.config.players) {
-        return { error: 'Save state must include a "config" object with "players".' };
-      }
-      normalizedSaveConfig = { players: normalizePlayers(data.config) };
-      if (!normalizedSaveConfig.players) {
-        return { error: 'Save state config.players is invalid.' };
       }
       if (!isArray(data.remainingMs)) {
         return { error: 'Save state must include "remainingMs" array.' };
@@ -428,41 +483,34 @@
           return { error: 'remainingMs must be non-negative numbers.' };
         }
       }
-      ci = Number(data.currentIndex);
-      if (!isIntegerNumber(ci) || ci < 0 || ci >= normalizedSaveConfig.players.length) {
-        return { error: 'currentIndex is out of range for this save.' };
+      if (!isIntegerNumber(Number(data.currentIndex))) {
+        return { error: 'Save state must include currentIndex.' };
       }
-      if (rem.length !== normalizedSaveConfig.players.length) {
-        return { error: 'remainingMs length does not match players in save.' };
-      }
-      nPlayers = normalizedSaveConfig.players.length;
-      if (data.outOfTimeCounts !== undefined) {
-        if (!isArray(data.outOfTimeCounts)) {
-          return { error: 'outOfTimeCounts must be an array when present.' };
-        }
+      if (isArray(data.outOfTimeCounts)) {
         for (i = 0; i < data.outOfTimeCounts.length; i++) {
           oc.push(Number(data.outOfTimeCounts[i]));
         }
-        if (oc.length !== nPlayers) {
-          return { error: 'outOfTimeCounts length must match players.' };
-        }
-        for (i = 0; i < oc.length; i++) {
-          if (!isIntegerNumber(oc[i]) || oc[i] < 0) {
-            return { error: 'outOfTimeCounts must be non-negative integers.' };
-          }
-        }
-        outCounts = oc;
       }
       return {
         empty: false,
-        config: normalizedSaveConfig,
         remainingMs: rem,
-        currentIndex: ci,
-        outOfTimeCounts: outCounts
+        currentIndex: Number(data.currentIndex),
+        outOfTimeCounts: oc.length ? oc : null
       };
     } catch (e2) {
-      return { error: 'Previous save state is not valid JSON.' };
+      return { error: 'Resume state is not valid JSON.' };
     }
+  }
+
+  function serverNow() {
+    return new Date().getTime() - serverOffsetMs;
+  }
+
+  function displayRemainingMs(state, idx) {
+    var rem = state.remainingMs[idx];
+    if (!state.playing || state.paused || idx !== state.currentIndex) return rem;
+    var elapsed = Math.max(0, serverNow() - state.lastTickAt);
+    return Math.max(0, rem - elapsed);
   }
 
   function formatTime(ms) {
@@ -474,56 +522,6 @@
     return String(m) + ':' + pad2(sec);
   }
 
-  function appendFlagCount(container, idx) {
-    var c = outOfTimeCounts[idx] || 0;
-    var el;
-    if (c < 1) return;
-    el = document.createElement('div');
-    el.className = 'flag-count';
-    el.appendChild(document.createTextNode('Out of time: ' + c));
-    container.appendChild(el);
-  }
-
-  function renderClock() {
-    var players;
-    var n;
-    var cur;
-    var k;
-    var idx;
-    var p;
-    var cell;
-    if (!gameConfig) return;
-    players = gameConfig.players;
-    n = players.length;
-    cur = players[currentIndex];
-
-    mainSlot.style.background = cur.backgroundColor;
-    mainSlot.innerHTML = '<div class="name"></div><div class="time"></div>';
-    mainSlot.querySelector('.name').appendChild(document.createTextNode(cur.name));
-    mainSlot.querySelector('.time').appendChild(document.createTextNode(formatTime(remainingMs[currentIndex])));
-    appendFlagCount(mainSlot, currentIndex);
-
-    stripEl.innerHTML = '';
-    if (n <= 1) {
-      stripEl.style.display = 'none';
-      return;
-    }
-    stripEl.style.display = 'flex';
-
-    for (k = 1; k < n; k++) {
-      idx = (currentIndex + k) % n;
-      p = players[idx];
-      cell = document.createElement('div');
-      cell.className = 'strip-cell';
-      cell.style.background = p.backgroundColor;
-      cell.innerHTML = '<div class="name"></div><div class="time"></div>';
-      cell.querySelector('.name').appendChild(document.createTextNode(p.name));
-      cell.querySelector('.time').appendChild(document.createTextNode(formatTime(remainingMs[idx])));
-      appendFlagCount(cell, idx);
-      stripEl.appendChild(cell);
-    }
-  }
-
   function stopSiren() {
     try {
       if (sirenLfo && sirenLfo.stop) sirenLfo.stop();
@@ -532,6 +530,7 @@
     sirenLfo = null;
     sirenOsc = null;
     sirenGain = null;
+    sirenOn = false;
   }
 
   function startSiren() {
@@ -560,178 +559,233 @@
       sirenGain.connect(ctx.destination);
       sirenLfo.start();
       sirenOsc.start();
+      sirenOn = true;
     } catch (ignore2) {}
   }
 
-  function nowMs() {
-    return window.performance && performance.now ? performance.now() : new Date().getTime();
+  function appendFlagCount(container, idx, state) {
+    var c = state.outOfTimeCounts[idx] || 0;
+    var el;
+    if (c < 1) return;
+    el = document.createElement('div');
+    el.className = 'flag-count';
+    el.appendChild(document.createTextNode('Out of time: ' + c));
+    container.appendChild(el);
   }
 
-  function tick(now) {
-    var delta;
-    var before;
-    if (!playing) return;
-    delta = now - lastTs;
-    lastTs = now;
-    if (!paused && remainingMs[currentIndex] > 0) {
-      before = remainingMs[currentIndex];
-      remainingMs[currentIndex] = Math.max(0, remainingMs[currentIndex] - delta);
-      if (before > 0 && remainingMs[currentIndex] <= 0) {
-        remainingMs[currentIndex] = 0;
-        outOfTimeCounts[currentIndex] = (outOfTimeCounts[currentIndex] || 0) + 1;
-        startSiren();
-      }
-    }
-    renderClock();
-  }
-
-  function scheduleTick() {
-    tick(nowMs());
-    if (playing) {
-      rafId = window.requestAnimationFrame
-        ? requestAnimationFrame(scheduleTick)
-        : setTimeout(scheduleTick, 33);
-    }
-  }
-
-  function cancelTick() {
-    if (!rafId) return;
-    if (window.cancelAnimationFrame) cancelAnimationFrame(rafId);
-    else clearTimeout(rafId);
-    rafId = 0;
-  }
-
-  function setPaused(next) {
-    paused = next;
-    if (paused) {
-      clockEl.className = 'active paused';
-      pauseBtn.setAttribute('aria-label', 'Resume');
-      pauseBtn.setAttribute('title', 'Resume');
-      pauseBtn.innerHTML = '&#9654;';
-      stopSiren();
-    } else {
-      clockEl.className = 'active';
-      pauseBtn.setAttribute('aria-label', 'Pause');
-      pauseBtn.setAttribute('title', 'Pause');
-      pauseBtn.innerHTML = '||';
-      if (remainingMs[currentIndex] <= 0) startSiren();
-    }
-  }
-
-  function copyStateToClipboard() {
-    var text = JSON.stringify({
-      v: 1,
-      config: initialConfig,
-      currentIndex: currentIndex,
-      remainingMs: remainingMs.slice(),
-      outOfTimeCounts: outOfTimeCounts.slice(),
-      savedAt: new Date().toISOString()
-    });
-    var ta;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text);
-        return;
-      }
-    } catch (ignore3) {}
-    try {
-      ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    } catch (ignore4) {}
-  }
-
-  function endTurn() {
+  function renderClock() {
+    var state = serverState;
+    var players;
     var n;
+    var cur;
+    var k;
+    var idx;
     var p;
-    if (!playing || !gameConfig || paused) return;
-    n = gameConfig.players.length;
-    undoStack.push({
-      remainingMs: remainingMs.slice(),
-      outOfTimeCounts: outOfTimeCounts.slice(),
-      currentIndex: currentIndex
-    });
-    p = gameConfig.players[currentIndex];
-    remainingMs[currentIndex] += p.increment * 1000;
-    currentIndex = (currentIndex + 1) % n;
-    stopSiren();
-    copyStateToClipboard();
-    renderClock();
-  }
+    var cell;
+    var activeRem;
+    if (!state || !state.players || !state.players.length) return;
 
-  function undoTurn() {
-    var snap;
-    var i;
-    if (!playing || paused || undoStack.length === 0) return;
-    snap = undoStack.pop();
-    remainingMs = snap.remainingMs;
-    if (snap.outOfTimeCounts) {
-      outOfTimeCounts = snap.outOfTimeCounts.slice();
-    } else {
-      outOfTimeCounts = makeZeroArray(remainingMs.length);
-    }
-    currentIndex = snap.currentIndex;
-    stopSiren();
-    if (remainingMs[currentIndex] <= 0) startSiren();
-    renderClock();
-  }
+    players = state.players;
+    n = players.length;
+    cur = players[state.currentIndex];
+    activeRem = displayRemainingMs(state, state.currentIndex);
 
-  function makeZeroArray(n) {
-    var arr = [];
-    var i;
-    for (i = 0; i < n; i++) arr.push(0);
-    return arr;
-  }
-
-  function startGame(parsedConfig, resume) {
-    var n;
-    var i;
-    stopSiren();
-    gameConfig = parsedConfig;
-    initialConfig = JSON.parse(JSON.stringify(parsedConfig));
-    n = parsedConfig.players.length;
-    if (resume) {
-      remainingMs = resume.remainingMs.slice();
-      currentIndex = resume.currentIndex;
-      outOfTimeCounts = (resume.outOfTimeCounts && resume.outOfTimeCounts.length === n)
-        ? resume.outOfTimeCounts.slice()
-        : makeZeroArray(n);
-    } else {
-      remainingMs = [];
-      for (i = 0; i < n; i++) {
-        remainingMs.push(parsedConfig.players[i].startTime * 1000);
+    if (state.playing && !state.paused && activeRem <= 0) {
+      if (!sirenOn || lastSirenIndex !== state.currentIndex) {
+        stopSiren();
+        startSiren();
+        lastSirenIndex = state.currentIndex;
       }
-      outOfTimeCounts = makeZeroArray(n);
-      currentIndex = 0;
+    } else {
+      stopSiren();
+      lastSirenIndex = -1;
     }
-    undoStack = [];
-    paused = false;
-    clockEl.className = 'active';
-    pauseBtn.innerHTML = '||';
-    pauseBtn.setAttribute('aria-label', 'Pause');
-    pauseBtn.setAttribute('title', 'Pause');
-    playing = true;
-    overlay.className = 'hidden';
-    clockEl.setAttribute('aria-hidden', 'false');
-    lastTs = nowMs();
-    cancelTick();
-    scheduleTick();
-    if (remainingMs[currentIndex] <= 0) startSiren();
+
+    mainSlot.style.background = cur.backgroundColor;
+    mainSlot.innerHTML = '<div class="name"></div><div class="time"></div>';
+    mainSlot.querySelector('.name').appendChild(document.createTextNode(cur.name));
+    mainSlot.querySelector('.time').appendChild(document.createTextNode(formatTime(activeRem)));
+    appendFlagCount(mainSlot, state.currentIndex, state);
+
+    stripEl.innerHTML = '';
+    if (n <= 1) {
+      stripEl.style.display = 'none';
+    } else {
+      stripEl.style.display = 'flex';
+      for (k = 1; k < n; k++) {
+        idx = (state.currentIndex + k) % n;
+        p = players[idx];
+        cell = document.createElement('div');
+        cell.className = 'strip-cell';
+        cell.style.background = p.backgroundColor;
+        cell.innerHTML = '<div class="name"></div><div class="time"></div>';
+        cell.querySelector('.name').appendChild(document.createTextNode(p.name));
+        cell.querySelector('.time').appendChild(
+          document.createTextNode(formatTime(displayRemainingMs(state, idx)))
+        );
+        appendFlagCount(cell, idx, state);
+        stripEl.appendChild(cell);
+      }
+    }
+
+    if (state.playing) {
+      clockEl.className = state.paused ? 'active paused' : 'active';
+      pauseBtn.innerHTML = state.paused ? '&#9654;' : '||';
+      pauseBtn.setAttribute('aria-label', state.paused ? 'Resume' : 'Pause');
+      pauseBtn.setAttribute('title', state.paused ? 'Resume' : 'Pause');
+      overlay.className = 'hidden';
+      clockEl.setAttribute('aria-hidden', 'false');
+    } else {
+      clockEl.className = 'under-overlay';
+      overlay.className = '';
+      clockEl.setAttribute('aria-hidden', 'true');
+      stopSiren();
+    }
+  }
+
+  function applyServerPayload(payload) {
+    if (!payload || !payload.state) return;
+    serverState = payload.state;
+    if (isFiniteNumber(payload.serverNow)) {
+      serverOffsetMs = new Date().getTime() - payload.serverNow;
+    }
     renderClock();
   }
 
-  function showError(msg) {
-    startError.innerHTML = '';
-    startError.appendChild(document.createTextNode(msg));
+  function scheduleRenderLoop() {
+    renderClock();
+    rafId = window.requestAnimationFrame
+      ? requestAnimationFrame(scheduleRenderLoop)
+      : setTimeout(scheduleRenderLoop, 33);
   }
 
-  function tryGo() {
+  function sendAction(action, payload, onDone) {
+    if (!socket || !connected) {
+      showError('Not connected to server. Check backend URL and try again.');
+      if (onDone) onDone({ ok: false, error: 'offline' });
+      return;
+    }
+    socket.emit('action', {
+      roomId: roomId,
+      action: action,
+      payload: payload || {}
+    }, function (res) {
+      if (res && res.ok) {
+        applyServerPayload(res);
+        showError('');
+      } else if (res && res.error) {
+        showError(res.error);
+      }
+      if (onDone) onDone(res);
+    });
+  }
+
+  function loadScript(url, cb) {
+    var script = document.createElement('script');
+    script.src = url;
+    script.onload = function () { cb(null); };
+    script.onerror = function () { cb(new Error('Failed to load ' + url)); };
+    document.head.appendChild(script);
+  }
+
+  function fetchInitialState(cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', serverUrl + '/api/rooms/' + encodeURIComponent(roomId) + '/state', true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          cb(null, JSON.parse(xhr.responseText));
+        } catch (e) {
+          cb(e);
+        }
+      } else {
+        cb(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.onerror = function () { cb(new Error('Network error')); };
+    xhr.send();
+  }
+
+  function connectSocket() {
+    if (!window.io) {
+      setStatus('offline', 'Offline / local only — Socket.IO client failed to load');
+      return;
+    }
+    if (socket) {
+      socket.disconnect();
+      socket = null;
+    }
+
+    setStatus('reconnecting', 'Reconnecting to shared server… room: ' + roomId);
+
+    socket = window.io(serverUrl, {
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 20000
+    });
+
+    socket.on('connect', function () {
+      connected = true;
+      setStatus('connected', 'Connected to shared server — room: ' + roomId);
+      socket.emit('join', { roomId: roomId }, function (res) {
+        if (res && res.ok) applyServerPayload(res);
+        else if (res && res.error) showError(res.error);
+      });
+    });
+
+    socket.on('disconnect', function () {
+      connected = false;
+      setStatus('reconnecting', 'Reconnecting… room: ' + roomId);
+    });
+
+    socket.on('connect_error', function () {
+      connected = false;
+      setStatus('offline', 'Offline / local only — cannot reach ' + serverUrl);
+    });
+
+    socket.on('state', function (payload) {
+      applyServerPayload(payload);
+    });
+  }
+
+  function initConnection() {
+    serverUrl = trim(serverInput.value).replace(/\/$/, '');
+    if (!serverUrl) {
+      setStatus('offline', 'Offline / local only — enter a backend server URL');
+      return;
+    }
+
+    setStatus('debug', 'MULTI CHESS CLOCK — loading shared server…');
+
+    fetchInitialState(function (err, data) {
+      if (!err && data) applyServerPayload(data);
+      loadScript(serverUrl + '/socket.io/socket.io.js', function (loadErr) {
+        if (loadErr) {
+          setStatus('offline', 'Offline / local only — could not load Socket.IO from server');
+          return;
+        }
+        connectSocket();
+      });
+    });
+  }
+
+  function trySyncConfig() {
+    var cfgResult = parseConfig(configInput.value);
+    showError('');
+    if (cfgResult.error) {
+      showError(cfgResult.error);
+      return;
+    }
+    sendAction('setConfig', { players: cfgResult.players });
+  }
+
+  function tryStart() {
     var cfgResult = parseConfig(configInput.value);
     var saveResult;
-    startError.innerHTML = '';
+    var payload;
+    showError('');
     if (cfgResult.error) {
       showError(cfgResult.error);
       return;
@@ -741,41 +795,58 @@
       showError(saveResult.error);
       return;
     }
-    if (saveResult.empty) {
-      startGame(cfgResult.config, null);
-      return;
+    payload = { players: cfgResult.players };
+    if (!saveResult.empty) {
+      if (saveResult.remainingMs.length !== cfgResult.players.length) {
+        showError('Resume remainingMs length must match player count in config.');
+        return;
+      }
+      payload.resume = {
+        remainingMs: saveResult.remainingMs,
+        currentIndex: saveResult.currentIndex,
+        outOfTimeCounts: saveResult.outOfTimeCounts
+      };
     }
-    if (!configsMatch(cfgResult.config, saveResult.config)) {
-      showError('Save state does not match config. Use the same players as in the saved config.');
-      return;
-    }
-    startGame(cfgResult.config, saveResult);
+    sendAction('start', payload);
   }
 
   function onKeyDown(e) {
     var code = e.code || e.key || '';
     var keyCode = e.keyCode || e.which;
-    if (!playing || isTypingTarget(document.activeElement)) return;
+    if (!serverState || !serverState.playing || isTypingTarget(document.activeElement)) return;
     if (code === 'Space' || keyCode === 32) {
       if (e.preventDefault) e.preventDefault();
-      if (!paused) endTurn();
+      if (!serverState.paused) sendAction('endTurn');
     } else if (code === 'Escape' || keyCode === 27) {
       if (e.preventDefault) e.preventDefault();
-      if (!paused) undoTurn();
+      if (!serverState.paused) sendAction('undo');
     }
   }
 
-  goBtn.addEventListener('click', tryGo);
+  roomId = getRoomIdFromUrl();
+  roomDisplay.value = roomId;
+  serverInput.value = getServerUrlFromUrl();
+
+  goBtn.addEventListener('click', tryStart);
+  syncConfigBtn.addEventListener('click', trySyncConfig);
   pauseBtn.addEventListener('click', function (e) {
     if (e.stopPropagation) e.stopPropagation();
-    if (!playing) return;
-    setPaused(!paused);
+    if (!serverState || !serverState.playing) return;
+    sendAction('togglePause');
+  });
+  resetBtn.addEventListener('click', function (e) {
+    if (e.stopPropagation) e.stopPropagation();
+    sendAction('reset');
   });
   clockEl.addEventListener('click', function () {
-    if (!playing || paused) return;
-    endTurn();
+    if (!serverState || !serverState.playing || serverState.paused) return;
+    sendAction('endTurn');
   });
   document.addEventListener('keydown', onKeyDown);
+  serverInput.addEventListener('change', initConnection);
+
+  scheduleRenderLoop();
+  initConnection();
 })();
   </script>
 </body>
